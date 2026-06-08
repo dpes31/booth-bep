@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>야구단 포토부스 · 손익분기 계산기</title>
+<style>
+  :root{
+    --bg:#0b0d10; --panel:#13161b; --panel-2:#191d24; --line:#2a313b;
+    --txt:#eef2f7; --txt-dim:#9aa3b0; --txt-faint:#646c78;
+    --accent:#c8ff4d; --accent-dim:#8aa83a; --loss:#ff6b6b; --loss-dim:#7a3030; --amber:#ffb648;
+    --radius:14px;
+    --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background-color:#0b0d10;color:var(--txt);font-family:var(--sans);-webkit-text-size-adjust:100%}
+  body{min-height:100vh;background-color:#0b0d10;
+    background-image:radial-gradient(640px 360px at 100% -6%,rgba(200,255,77,.05),transparent 62%),
+      radial-gradient(560px 380px at -8% 102%,rgba(120,150,255,.045),transparent 60%);
+    padding:24px 16px 80px}
+  .wrap{max-width:680px;margin:0 auto}
+
+  header{margin-bottom:20px}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.26em;color:var(--accent);text-transform:uppercase;margin-bottom:9px;display:flex;align-items:center;gap:9px}
+  .kicker::before{content:"";width:24px;height:1px;background:var(--accent)}
+  h1{font-size:clamp(22px,6vw,32px);font-weight:800;letter-spacing:-.02em;line-height:1.12}
+  .sub{color:var(--txt-dim);font-size:13.5px;margin-top:9px;line-height:1.55}
+
+  /* 핵심 결론 배너 */
+  .hero{border-radius:var(--radius);padding:22px 20px;margin-bottom:18px;border:1px solid;position:relative;overflow:hidden}
+  .hero.ok{background-color:#161a12;background-image:linear-gradient(135deg,rgba(200,255,77,.12),rgba(200,255,77,.02));border-color:rgba(200,255,77,.4)}
+  .hero.bad{background-color:#1c1416;background-image:linear-gradient(135deg,rgba(255,107,107,.12),rgba(255,107,107,.02));border-color:rgba(255,107,107,.4)}
+  .hero .tag{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;margin-bottom:12px}
+  .hero.ok .tag{color:var(--accent)} .hero.bad .tag{color:var(--loss)}
+  .hero .headline{font-size:15px;color:var(--txt-dim);margin-bottom:6px;font-weight:500}
+  .hero .figure{font-family:var(--mono);font-size:clamp(34px,11vw,52px);font-weight:800;letter-spacing:-.03em;line-height:1}
+  .hero.ok .figure{color:var(--accent)} .hero.bad .figure{color:var(--loss)}
+  .hero .note{color:var(--txt-dim);font-size:13px;margin-top:13px;line-height:1.55;border-top:1px solid rgba(255,255,255,.08);padding-top:12px}
+  .hero .note b{color:var(--txt)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
+  .card-h{padding:14px 17px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .card-h .n{font-family:var(--mono);font-size:13px;color:var(--accent);flex:none}
+  .card-h h2{font-size:14px;font-weight:700;letter-spacing:-.01em}
+  .card-h .small{color:var(--txt-faint);font-weight:400;font-size:12px}
+  .card-b{padding:16px 17px}
+
+  /* 모드 토글 */
+  .seg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;margin-bottom:18px}
+  .seg button{flex:1;background:transparent;border:0;color:var(--txt-dim);font-family:var(--sans);font-size:13px;font-weight:600;padding:11px 6px;border-radius:7px;cursor:pointer;transition:.15s;line-height:1.3}
+  .seg button.on{background:var(--accent);color:#0b0d10}
+
+  .slider-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px}
+  .slider-head .lab{font-size:13px;color:var(--txt-dim);font-weight:500}
+  .slider-head .val{font-family:var(--mono);font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-.02em}
+  .slider-head .val small{font-size:14px;color:var(--txt-faint);font-weight:500;margin-left:2px}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:8px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:24px;height:24px;border-radius:50%;background:var(--accent);border:4px solid var(--bg);box-shadow:0 0 0 1px var(--accent-dim);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:var(--accent);border:4px solid var(--bg);box-shadow:0 0 0 1px var(--accent-dim);cursor:pointer}
+  .range-axis{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--txt-faint);margin-top:7px}
+
+  /* 보조 결과 미니 그리드 */
+  .mini{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:18px}
+  .mini .m{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:11px 12px}
+  .mini .mk{font-size:10.5px;color:var(--txt-dim);margin-bottom:5px}
+  .mini .mv{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:-.01em}
+  .mv.pos{color:var(--accent)} .mv.neg{color:var(--loss)}
+
+  /* 산출 기준 접이식 */
+  .calc-toggle{width:100%;margin-top:14px;background:transparent;border:1px solid var(--line);border-radius:9px;color:var(--txt-dim);font-family:var(--sans);font-size:12.5px;font-weight:600;padding:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
+  .calc-toggle .cv{font-family:var(--mono);font-size:10px;transition:transform .2s}
+  .calc-toggle.open{color:var(--accent);border-color:var(--accent-dim)}
+  .calc-toggle.open .cv{transform:rotate(180deg)}
+  .calc-detail{margin-top:10px;border:1px solid var(--line);border-radius:11px;background:var(--panel-2);padding:4px 14px}
+  .cstep{padding:11px 0;border-bottom:1px dashed var(--line)}
+  .cstep:last-child{border-bottom:0}
+  .cstep .crow{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .cstep .ck{font-size:12.5px;color:var(--txt-dim);font-weight:600}
+  .cstep .cval{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--txt);white-space:nowrap;letter-spacing:-.01em}
+  .cstep .cval.pos{color:var(--accent)} .cstep .cval.amber{color:var(--amber)} .cstep .cval.neg{color:var(--loss)}
+  .cstep .cform{font-family:var(--mono);font-size:11px;color:var(--txt-faint);margin-top:5px;line-height:1.5}
+
+  /* 차트 */
+  svg{width:100%;height:auto;display:block}
+  .chart-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--txt-dim);padding:4px 0 12px;font-family:var(--mono)}
+  .chart-legend span{display:flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .axis{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--txt-faint);padding:2px 2px 0}
+  .scrubber{margin-top:14px}
+  .scrub-read{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono);font-size:12px;margin-bottom:9px}
+  .scrub-read .y{font-weight:700;font-size:15px}
+
+  /* 상세 입력 (접이식) */
+  details{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  summary{padding:15px 17px;cursor:pointer;font-size:14px;font-weight:700;list-style:none;display:flex;align-items:center;justify-content:space-between}
+  summary::-webkit-details-marker{display:none}
+  summary .chev{color:var(--txt-faint);font-family:var(--mono);transition:.2s}
+  details[open] summary .chev{transform:rotate(180deg)}
+  .det-b{padding:4px 17px 17px;border-top:1px solid var(--line)}
+  .grp{margin-top:16px}
+  .grp-t{font-size:12px;font-weight:700;color:var(--txt-dim);margin-bottom:10px;letter-spacing:.02em;text-transform:uppercase;font-family:var(--mono)}
+  .field{margin-bottom:13px}
+  .field:last-child{margin-bottom:0}
+  label{display:block;font-size:12.5px;color:var(--txt-dim);margin-bottom:7px;font-weight:500}
+  label .hint{color:var(--txt-faint);font-weight:400}
+  .inwrap{position:relative;display:flex;align-items:center}
+  .inwrap .unit{position:absolute;right:12px;font-family:var(--mono);font-size:12px;color:var(--txt-faint);pointer-events:none}
+  input[type=text]{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;color:var(--txt);font-family:var(--mono);font-size:14px;font-weight:500;padding:10px 40px 10px 12px;text-align:right}
+  input[type=text].oname{text-align:left;font-family:var(--sans);padding-right:12px}
+  input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(200,255,77,.13)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+
+  .orow{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:10px}
+  .orow .r1{display:flex;gap:8px;align-items:center;margin-bottom:9px}
+  .orow .oname{flex:1;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;font-family:var(--sans);font-weight:600;font-size:13.5px;padding:5px 2px}
+  .orow .oname:focus{box-shadow:none;border-bottom-color:var(--accent)}
+  .orow .r2{display:flex;gap:8px;align-items:center}
+  .orow .amt-wrap{position:relative;display:flex;align-items:center;flex:1;min-width:0}
+  .orow .amt{background:var(--bg);font-size:14px}
+  .orow .amt-wrap .unit{right:10px}
+  .otoggle{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex:none}
+  .otoggle button{background:var(--panel-2);border:0;border-left:1px solid var(--line);color:var(--txt-faint);font-family:var(--sans);font-size:11px;font-weight:600;padding:9px 8px;cursor:pointer;line-height:1}
+  .otoggle button:first-child{border-left:0}
+  .otoggle button.on{background:var(--amber);color:#0b0d10}
+  .otoggle button.p-once.on{background:var(--accent)}
+  .ohint{font-family:var(--mono);font-size:10.5px;color:var(--txt-faint);margin-top:8px;line-height:1.4}
+  .ohint.recur{color:var(--amber)}
+  .addbtn{width:100%;background:var(--panel-2);border:1px dashed var(--line);color:var(--txt-dim);font-size:13px;font-weight:600;padding:10px;border-radius:9px;cursor:pointer;margin-top:4px}
+  .delx{background:transparent;border:1px solid var(--line);color:var(--txt-faint);width:30px;height:32px;border-radius:7px;font-size:15px;cursor:pointer;flex:none}
+  .delx:disabled{opacity:.25}
+  .subtotal{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;font-size:12px;color:var(--txt-dim)}
+  .subtotal b{font-family:var(--mono);font-size:14px;color:var(--txt);font-weight:700}
+
+  footer{text-align:center;color:var(--txt-faint);font-size:11px;font-family:var(--mono);margin-top:24px;letter-spacing:.04em;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Photobooth Break-Even</div>
+    <h1>야구단 포토부스 손익분기 계산기</h1>
+    <p class="sub">매년 갱신되는 IP·유지보수까지 반영한 실질 손익분기. 객단가 하나만 정하면 회수 시점이 보입니다.</p>
+  </header>
+
+  <div id="hero" class="hero ok"></div>
+
+  <div class="card">
+    <div class="card-b">
+      <div class="seg" id="modeSeg">
+        <button class="on" data-mode="target">목표 기간 → 필요 객단가</button>
+        <button data-mode="price">객단가 → 회수 기간</button>
+      </div>
+
+      <!-- 목표 기간 모드 -->
+      <div id="ctlTarget">
+        <div class="slider-head"><span class="lab">목표 회수기간</span><span class="val" id="targetVal">1.0<small>년</small></span></div>
+        <input type="range" id="targetYears" min="0.5" max="10" step="0.25" value="1">
+        <div class="range-axis"><span>0.5년</span><span>5년</span><span>10년</span></div>
+      </div>
+
+      <!-- 객단가 모드 -->
+      <div id="ctlPrice" style="display:none">
+        <div class="slider-head"><span class="lab">1회 촬영 객단가</span><span class="val" id="priceVal">7,000<small>원</small></span></div>
+        <input type="range" id="priceSlider" min="1000" max="50000" step="500" value="7000">
+        <div class="range-axis"><span>1천원</span><span>2.5만원</span><span>5만원</span></div>
+      </div>
+
+      <div class="mini">
+        <div class="m"><div class="mk">연간 매출</div><div class="mv" id="m-rev">–</div></div>
+        <div class="m"><div class="mk">연간 순현금<br>(우리 몫)</div><div class="mv" id="m-net">–</div></div>
+        <div class="m"><div class="mk">손익분기</div><div class="mv" id="m-bep">–</div></div>
+      </div>
+
+      <button class="calc-toggle" id="calcToggle" type="button"><span id="calcToggleLab">산출 기준 보기</span><span class="cv">▼</span></button>
+      <div class="calc-detail" id="calcDetail" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="n">∿</span><h2>누적 손익 곡선 <span class="small">· 연 단위</span></h2></div>
+    <div class="card-b">
+      <div class="chart-legend">
+        <span><i class="dot" style="background:var(--loss)"></i>적자</span>
+        <span><i class="dot" style="background:var(--accent)"></i>흑자</span>
+        <span><i class="dot" style="background:var(--amber)"></i>손익분기</span>
+        <span><i class="dot" style="background:#fff"></i>탐색 시점</span>
+      </div>
+      <svg id="chart" viewBox="0 0 600 240" preserveAspectRatio="none"></svg>
+      <div class="axis" id="chartAxis"></div>
+      <div class="scrubber">
+        <div class="scrub-read"><span class="t">탐색 시점 <b id="scrubT" style="color:var(--txt)">–</b></span><span class="y" id="scrubY">–</span></div>
+        <input type="range" id="scrub" min="0" max="100" step="0.5" value="50">
+      </div>
+    </div>
+  </div>
+
+  <details open>
+    <summary>상세 설정 · 비용 / 운영 입력 <span class="chev">▾</span></summary>
+    <div class="det-b">
+      <div class="grp">
+        <div class="grp-t">비용 — 항목별 · 1회 / 매년 / 매월 선택</div>
+        <div id="outsourceList"></div>
+        <button class="addbtn" id="addOutsource">+ 항목 추가</button>
+        <div class="subtotal"><span>1회성 합계</span><b id="onceSum">0</b></div>
+        <div class="subtotal" style="margin-top:5px"><span>매년 반복 합계 <span style="color:var(--txt-faint)">(연 환산)</span></span><b id="recurSum" style="color:var(--amber)">0</b></div>
+      </div>
+
+      <div class="grp">
+        <div class="grp-t">운영</div>
+        <div class="two">
+          <div class="field" style="margin:0">
+            <label>연간 경기 수</label>
+            <div class="inwrap"><input type="text" id="games" value="72"><span class="unit">경기</span></div>
+          </div>
+          <div class="field" style="margin:0">
+            <label>경기당 예상 인원</label>
+            <div class="inwrap"><input type="text" id="perGame" value="100"><span class="unit">명</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="grp-t">수익쉐어</div>
+        <div class="field" style="margin-bottom:0">
+          <label>우리(대행사) 몫 <span class="hint">야구단 배분 후</span></label>
+          <div class="inwrap"><input type="text" id="ourShare" value="80"><span class="unit">%</span></div>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <footer>PHOTOBOOTH BREAK-EVEN · 선수 IP 등 매년 갱신 비용은 [매년]으로 설정해야<br>실질 손익분기가 정확히 계산됩니다 · 입력값은 저장되지 않습니다</footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const won=n=>Math.round(n).toLocaleString('ko-KR');
+function abbr(n){const a=Math.abs(n),s=n<0?'-':'';
+  if(a>=1e8)return s+(a/1e8).toFixed(a%1e8?1:0).replace(/\.0$/,'')+'억';
+  if(a>=1e4)return s+(a/1e4).toFixed(a%1e4?(a<1e6?1:0):0).replace(/\.0$/,'')+'만';
+  return s+Math.round(a).toLocaleString('ko-KR');}
+const num=id=>{const v=$(id).value.replace(/[^0-9.]/g,'');return v===''?0:parseFloat(v);};
+const fmtComma=v=>{v=(''+v).replace(/[^0-9]/g,'');return v===''?'':parseInt(v,10).toLocaleString('ko-KR');};
+function yrText(y){ if(y>=100) return '회수 불가'; return y.toFixed(1)+'년'; }
+
+let mode='target', scrubPct=50;
+
+/* 외주비 행: [이름, 금액, 매년여부] */
+const defaults=[['선수 IP','50,000,000','year'],['키오스크','35,000,000','once'],['부스','100,000,000','once'],['영상 촬영','30,000,000','once'],['유지보수료','1,000,000','month']];
+function makeRow(name,amt,period){
+  const row=document.createElement('div');row.className='orow';row.dataset.period=period||'once';
+  row.innerHTML=`<div class="r1"><input type="text" class="oname" value="${name||''}" placeholder="항목명"><button class="delx" type="button">×</button></div>
+    <div class="r2"><div class="amt-wrap"><input type="text" class="amt" value="${amt||'0'}"><span class="unit">원</span></div>
+      <div class="otoggle">
+        <button class="p-once" data-p="once" type="button">1회</button>
+        <button class="p-year" data-p="year" type="button">매년</button>
+        <button class="p-month" data-p="month" type="button">매월</button>
+      </div></div>
+    <div class="ohint"></div>`;
+  function setActive(){row.querySelectorAll('.otoggle button').forEach(b=>b.classList.toggle('on',b.dataset.p===row.dataset.period));}
+  row.querySelectorAll('.otoggle button').forEach(b=>b.addEventListener('click',()=>{row.dataset.period=b.dataset.p;setActive();updateHint(row);calc();}));
+  row.querySelector('.delx').addEventListener('click',()=>{row.remove();updateDel();calc();});
+  setActive();
+  return row;
+}
+function updateHint(row){
+  const amt=parseFloat(row.querySelector('.amt').value.replace(/[^0-9.]/g,''))||0;
+  const p=row.dataset.period,h=row.querySelector('.ohint');
+  if(p==='month'){h.className='ohint recur';h.textContent=`↳ 월 ${won(amt)}원 × 12 = 연 ${won(amt*12)}원 반복`;}
+  else if(p==='year'){h.className='ohint recur';h.textContent=`↳ 매년 ${won(amt)}원 반복 (갱신)`;}
+  else{h.className='ohint';h.textContent='↳ 1회성 투자비';}
+}
+function updateDel(){const rows=document.querySelectorAll('#outsourceList .orow');rows.forEach(r=>r.querySelector('.delx').disabled=rows.length<=1);}
+$('addOutsource').addEventListener('click',()=>{$('outsourceList').appendChild(makeRow('','0','once'));updateDel();calc();});
+$('outsourceList').addEventListener('input',e=>{if(e.target.classList.contains('amt'))e.target.value=fmtComma(e.target.value);calc();});
+function sumOutsource(){let once=0,recur=0;document.querySelectorAll('#outsourceList .orow').forEach(r=>{
+  const amt=parseFloat(r.querySelector('.amt').value.replace(/[^0-9.]/g,''))||0;
+  const p=r.dataset.period;
+  if(p==='month')recur+=amt*12;else if(p==='year')recur+=amt;else once+=amt;
+  updateHint(r);});return{once,recur};}
+
+['games','perGame','ourShare'].forEach(id=>$(id).addEventListener('input',calc));
+
+$('modeSeg').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  mode=b.dataset.mode;$('modeSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  $('ctlTarget').style.display=mode==='target'?'block':'none';
+  $('ctlPrice').style.display=mode==='price'?'block':'none';calc();}));
+$('targetYears').addEventListener('input',e=>{$('targetVal').innerHTML=parseFloat(e.target.value).toFixed(1)+'<small>년</small>';calc();});
+$('priceSlider').addEventListener('input',e=>{$('priceVal').innerHTML=parseInt(e.target.value).toLocaleString('ko-KR')+'<small>원</small>';calc();});
+$('scrub').addEventListener('input',e=>{scrubPct=parseFloat(e.target.value);calc();});
+
+function calc(){
+  const {once,recur}=sumOutsource();
+  $('onceSum').textContent=won(once)+' 원';
+  const annualRecur=recur;
+  $('recurSum').textContent=won(annualRecur)+' 원';
+  const capex=once;
+  const games=num('games'),perGame=num('perGame'),share=num('ourShare')/100;
+  const volume=games*perGame*share;        // 객단가 1원당 우리 연 매출몫
+
+  let price, targetYears;
+  if(mode==='price'){
+    price=num('priceSlider');
+    targetYears=null;
+  } else {
+    targetYears=Math.max(0.5,num('targetYears'));
+    // 역산: capex = T*(price*volume - annualRecur) → price = (capex/T + annualRecur)/volume
+    price = volume>0 ? (capex/targetYears + annualRecur)/volume : 0;
+  }
+
+  const revenueTotal = price*games*perGame;       // 전체 연 매출
+  const ourRevenue   = price*volume;              // 우리 몫 연 매출
+  const annualNet    = ourRevenue - annualRecur;  // 연 순현금
+  let bep = annualNet>0 ? capex/annualNet : 999;  // 회수 연수
+
+  // 미니 지표
+  $('m-rev').textContent=abbr(revenueTotal)+'원';$('m-rev').className='mv';
+  $('m-net').textContent=(annualNet>=0?'+':'')+abbr(annualNet)+'원';$('m-net').className='mv '+(annualNet>=0?'pos':'neg');
+  $('m-bep').textContent=yrText(bep);$('m-bep').className='mv '+(bep<=20?'pos':'neg');
+
+  // HERO
+  const hero=$('hero');
+  if(mode==='target'){
+    if(volume<=0||price<=0){hero.className='hero bad';hero.innerHTML=`<div class="tag">▲ 입력 확인</div><div class="headline">경기 수·인원·쉐어를 확인해 주세요</div><div class="figure">–</div>`;}
+    else{
+      const realistic = price<=20000;
+      hero.className='hero '+(realistic?'ok':'bad');
+      hero.innerHTML=`<div class="tag">${realistic?'● 필요 객단가':'◆ 필요 객단가 (높음)'}</div>
+        <div class="headline">목표 <b style="color:var(--txt)">${targetYears.toFixed(1)}년</b> 안에 회수하려면 객단가는</div>
+        <div class="figure">${won(price)}<span style="font-size:.5em">원</span></div>
+        <div class="note">현재 자료의 7,000원 대비 <b>${(price/7000).toFixed(1)}배</b> 수준입니다. 매년 나가는 IP·유지보수 <b>${abbr(annualRecur)}원</b>을 먼저 메우고 1회성 투자 <b>${abbr(capex)}원</b>을 ${targetYears.toFixed(1)}년에 나눠 회수하는 가격입니다.${realistic?'':' 현실적 객단가(2만원 내외)로는 무리이니 목표 기간을 늘리거나 경기당 인원·쉐어 조건을 조정해야 합니다.'}</div>`;
+    }
+  } else {
+    if(annualNet<=0){
+      hero.className='hero bad';
+      hero.innerHTML=`<div class="tag">▲ 구조적 적자</div>
+        <div class="headline">객단가 ${won(price)}원 — 이 가격으로는</div>
+        <div class="figure">회수 불가</div>
+        <div class="note">우리 몫 연 매출 <b>${abbr(ourRevenue)}원</b>이 매년 나가는 IP·유지보수 <b>${abbr(annualRecur)}원</b>보다 적습니다. 매년 <b style="color:var(--loss)">${abbr(annualNet)}원</b>씩 손실이 누적됩니다. 적자 탈출 최소 객단가는 <b>${won(annualRecur/volume)}원</b>입니다.</div>`;
+    }else{
+      hero.className='hero ok';
+      hero.innerHTML=`<div class="tag">● 손익분기 도달</div>
+        <div class="headline">객단가 ${won(price)}원 — 투자 회수까지</div>
+        <div class="figure">${bep.toFixed(1)}<span style="font-size:.5em">년</span></div>
+        <div class="note">매년 IP·유지보수 <b>${abbr(annualRecur)}원</b>을 제하고도 <b style="color:var(--accent)">${abbr(annualNet)}원</b>이 남아 1회성 투자 <b>${abbr(capex)}원</b>을 ${bep.toFixed(1)}년에 회수합니다.</div>`;
+    }
+  }
+
+  // 산출 기준 (실시간)
+  const ms=num('ourShare');
+  $('calcDetail').innerHTML=`
+    <div class="cstep"><div class="crow"><span class="ck">1회성 투자비 (CAPEX)</span><span class="cval">${won(capex)}원</span></div><div class="cform">= 외주 항목 중 [1회성] 합계</div></div>
+    <div class="cstep"><div class="crow"><span class="ck">연간 전체 매출</span><span class="cval">${won(revenueTotal)}원</span></div><div class="cform">= 객단가 ${won(price)} × 경기 ${won(games)} × 인원 ${won(perGame)}</div></div>
+    <div class="cstep"><div class="crow"><span class="ck">우리 몫 매출 <span style="color:var(--txt-faint)">(쉐어 ${ms}%)</span></span><span class="cval">${won(ourRevenue)}원</span></div><div class="cform">= 연간 매출 × ${ms}%</div></div>
+    <div class="cstep"><div class="crow"><span class="ck">연간 반복비</span><span class="cval amber">${won(annualRecur)}원</span></div><div class="cform">= [매년]·[매월×12] 항목의 연 환산 합계</div></div>
+    <div class="cstep"><div class="crow"><span class="ck">연간 순현금</span><span class="cval ${annualNet>=0?'pos':'neg'}">${annualNet>=0?'+':''}${won(annualNet)}원</span></div><div class="cform">= 우리 몫 매출 − 연간 반복비</div></div>
+    <div class="cstep"><div class="crow"><span class="ck">손익분기 시점</span><span class="cval ${bep<=20?'pos':'neg'}">${yrText(bep)}</span></div><div class="cform">= CAPEX ÷ 연간 순현금</div></div>`;
+
+  drawChart({capex,annualNet,bep,targetYears,price});
+}
+
+function drawChart(d){
+  const svg=$('chart'),W=600,H=240,padL=8,padR=8,padT=14,padB=10;
+  let maxY=Math.max(d.bep<900?d.bep*1.3:6, d.targetYears?d.targetYears*1.5:6, 6);
+  const N=60,pts=[];let lo=-d.capex,hi=-d.capex;
+  for(let i=0;i<=N;i++){const y=maxY*i/N;const cum=d.annualNet*y-d.capex;pts.push([y,cum]);lo=Math.min(lo,cum);hi=Math.max(hi,cum);}
+  if(hi<=0)hi=d.capex*0.15;
+  const range=hi-lo||1;
+  const X=v=>padL+(v/maxY)*(W-padL-padR);
+  const Y=v=>padT+(1-(v-lo)/range)*(H-padT-padB);
+  const zeroY=Y(0);
+  let path='';pts.forEach((p,i)=>path+=(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)+' ');
+
+  let bepMark='';
+  if(d.bep<900&&d.bep<=maxY){const bx=X(d.bep);bepMark=`<line x1="${bx}" y1="${padT}" x2="${bx}" y2="${H-padB}" stroke="var(--amber)" stroke-width="1" stroke-dasharray="3 3" opacity=".7"/><circle cx="${bx}" cy="${zeroY}" r="5" fill="var(--amber)" stroke="var(--bg)" stroke-width="1.5"/>`;}
+  let tgtMark='';
+  if(d.targetYears&&d.targetYears<=maxY){const tx=X(d.targetYears);tgtMark=`<line x1="${tx}" y1="${padT}" x2="${tx}" y2="${H-padB}" stroke="var(--amber)" stroke-width="1.2" stroke-dasharray="2 4" opacity=".85"/><text x="${(tx-5).toFixed(1)}" y="${padT+10}" text-anchor="end" font-family="monospace" font-size="10" font-weight="700" fill="var(--amber)">목표 ${d.targetYears.toFixed(1)}Y</text>`;}
+
+  const scrubY=maxY*scrubPct/100;const scrubCum=d.annualNet*scrubY-d.capex;
+  const sx=X(scrubY),sy=Y(scrubCum);
+  const scrubMark=`<line x1="${sx}" y1="${padT}" x2="${sx}" y2="${H-padB}" stroke="#fff" stroke-width="1" opacity=".55"/><circle cx="${sx}" cy="${sy}" r="5.5" fill="#fff" stroke="var(--bg)" stroke-width="1.5"/>`;
+
+  svg.innerHTML=`<defs><linearGradient id="gp" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity=".26"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    <rect x="${padL}" y="${padT}" width="${W-padL-padR}" height="${(zeroY-padT).toFixed(1)}" fill="url(#gp)" opacity="${hi>0?1:0}"/>
+    <line x1="${padL}" y1="${zeroY}" x2="${W-padR}" y2="${zeroY}" stroke="var(--line)" stroke-width="1"/>
+    ${tgtMark}${bepMark}
+    <path d="${path}" fill="none" stroke="${d.annualNet>0?'var(--accent)':'var(--loss)'}" stroke-width="2.4" stroke-linecap="round"/>
+    ${scrubMark}`;
+  $('chartAxis').innerHTML=`<span>0년</span><span>${(maxY/2).toFixed(1)}년</span><span>${maxY.toFixed(1)}년</span>`;
+  $('scrubT').textContent=scrubY.toFixed(1)+'년';
+  $('scrubY').textContent=(scrubCum>=0?'+':'')+won(scrubCum)+' 원';
+  $('scrubY').style.color=scrubCum>=0?'var(--accent)':'var(--loss)';
+}
+
+$('calcToggle').addEventListener('click',()=>{
+  const d=$('calcDetail'),btn=$('calcToggle'),open=d.style.display!=='none';
+  d.style.display=open?'none':'block';
+  btn.classList.toggle('open',!open);
+  $('calcToggleLab').textContent=open?'산출 기준 보기':'산출 기준 숨기기';
+});
+
+defaults.forEach(d=>$('outsourceList').appendChild(makeRow(d[0],d[1],d[2])));
+updateDel();calc();
+</script>
+</body>
+</html>
