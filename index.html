@@ -15,11 +15,8 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{background-color:#0b0d10;color:var(--txt);font-family:var(--sans);-webkit-text-size-adjust:100%}
-  body{min-height:100vh;background-color:#0b0d10;
-    background-image:radial-gradient(640px 360px at 100% -6%,rgba(200,255,77,.05),transparent 62%),
-      radial-gradient(560px 380px at -8% 102%,rgba(120,150,255,.045),transparent 60%);
-    padding:24px 16px 80px}
-  .wrap{max-width:680px;margin:0 auto}
+  body{min-height:100vh;background-color:#0b0d10;margin:0}
+  .wrap{max-width:680px;margin:0 auto;background-color:#0b0d10;min-height:100vh;padding:24px 16px 80px}
 
   header{margin-bottom:20px}
   .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.26em;color:var(--accent);text-transform:uppercase;margin-bottom:9px;display:flex;align-items:center;gap:9px}
@@ -111,25 +108,18 @@
   input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(200,255,77,.13)}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 
-  .orow{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:10px}
-  .orow .r1{display:flex;gap:8px;align-items:center;margin-bottom:9px}
-  .orow .oname{flex:1;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;font-family:var(--sans);font-weight:600;font-size:13.5px;padding:5px 2px}
-  .orow .oname:focus{box-shadow:none;border-bottom-color:var(--accent)}
-  .orow .r2{display:flex;gap:8px;align-items:center}
-  .orow .amt-wrap{position:relative;display:flex;align-items:center;flex:1;min-width:0}
-  .orow .amt{background:var(--bg);font-size:14px}
+  .orow{display:grid;grid-template-columns:1fr 1fr auto;gap:7px;align-items:center;margin-bottom:8px}
+  .orow .amt-wrap{position:relative;display:flex;align-items:center}
   .orow .amt-wrap .unit{right:10px}
   .otoggle{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex:none}
-  .otoggle button{background:var(--panel-2);border:0;border-left:1px solid var(--line);color:var(--txt-faint);font-family:var(--sans);font-size:11px;font-weight:600;padding:9px 8px;cursor:pointer;line-height:1}
+  .otoggle button{background:var(--panel-2);border:0;border-left:1px solid var(--line);color:var(--txt-faint);font-family:var(--sans);font-size:10.5px;font-weight:600;padding:9px 6px;cursor:pointer;line-height:1}
   .otoggle button:first-child{border-left:0}
   .otoggle button.on{background:var(--amber);color:#0b0d10}
   .otoggle button.p-once.on{background:var(--accent)}
-  .ohint{font-family:var(--mono);font-size:10.5px;color:var(--txt-faint);margin-top:8px;line-height:1.4}
-  .ohint.recur{color:var(--amber)}
-  .addbtn{width:100%;background:var(--panel-2);border:1px dashed var(--line);color:var(--txt-dim);font-size:13px;font-weight:600;padding:10px;border-radius:9px;cursor:pointer;margin-top:4px}
-  .delx{background:transparent;border:1px solid var(--line);color:var(--txt-faint);width:30px;height:32px;border-radius:7px;font-size:15px;cursor:pointer;flex:none}
+  .addbtn{width:100%;background:var(--panel-2);border:1px dashed var(--line);color:var(--txt-dim);font-size:13px;font-weight:600;padding:9px;border-radius:9px;cursor:pointer;margin-top:3px}
+  .delx{background:transparent;border:1px solid var(--line);color:var(--txt-faint);width:28px;height:36px;border-radius:7px;font-size:15px;cursor:pointer;flex:none}
   .delx:disabled{opacity:.25}
-  .subtotal{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;font-size:12px;color:var(--txt-dim)}
+  .subtotal{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;font-size:12px;color:var(--txt-dim)}
   .subtotal b{font-family:var(--mono);font-size:14px;color:var(--txt);font-weight:700}
 
   footer{text-align:center;color:var(--txt-faint);font-size:11px;font-family:var(--mono);margin-top:24px;letter-spacing:.04em;line-height:1.6}
@@ -215,7 +205,7 @@
           </div>
           <div class="field" style="margin:0">
             <label>경기당 예상 인원</label>
-            <div class="inwrap"><input type="text" id="perGame" value="100"><span class="unit">명</span></div>
+            <div class="inwrap"><input type="text" id="perGame" value="200"><span class="unit">명</span></div>
           </div>
         </div>
       </div>
@@ -247,29 +237,24 @@ function yrText(y){ if(y>=100) return '회수 불가'; return y.toFixed(1)+'년'
 let mode='target', scrubPct=50;
 
 /* 외주비 행: [이름, 금액, 매년여부] */
-const defaults=[['선수 IP','50,000,000','year'],['키오스크','35,000,000','once'],['부스','100,000,000','once'],['영상 촬영','30,000,000','once'],['유지보수료','1,000,000','month']];
+const defaults=[['선수 IP','50,000,000','year'],['키오스크','35,000,000','once'],['부스','100,000,000','once'],['영상 촬영','30,000,000','year'],['유지보수료','1,000,000','month']];
 function makeRow(name,amt,period){
   const row=document.createElement('div');row.className='orow';row.dataset.period=period||'once';
-  row.innerHTML=`<div class="r1"><input type="text" class="oname" value="${name||''}" placeholder="항목명"><button class="delx" type="button">×</button></div>
-    <div class="r2"><div class="amt-wrap"><input type="text" class="amt" value="${amt||'0'}"><span class="unit">원</span></div>
+  row.innerHTML=`<input type="text" class="oname" value="${name||''}" placeholder="항목명">
+    <div class="amt-wrap"><input type="text" class="amt" value="${amt||'0'}"><span class="unit">원</span></div>
+    <div style="display:flex;gap:5px">
       <div class="otoggle">
         <button class="p-once" data-p="once" type="button">1회</button>
         <button class="p-year" data-p="year" type="button">매년</button>
         <button class="p-month" data-p="month" type="button">매월</button>
-      </div></div>
-    <div class="ohint"></div>`;
+      </div>
+      <button class="delx" type="button">×</button>
+    </div>`;
   function setActive(){row.querySelectorAll('.otoggle button').forEach(b=>b.classList.toggle('on',b.dataset.p===row.dataset.period));}
-  row.querySelectorAll('.otoggle button').forEach(b=>b.addEventListener('click',()=>{row.dataset.period=b.dataset.p;setActive();updateHint(row);calc();}));
+  row.querySelectorAll('.otoggle button').forEach(b=>b.addEventListener('click',()=>{row.dataset.period=b.dataset.p;setActive();calc();}));
   row.querySelector('.delx').addEventListener('click',()=>{row.remove();updateDel();calc();});
   setActive();
   return row;
-}
-function updateHint(row){
-  const amt=parseFloat(row.querySelector('.amt').value.replace(/[^0-9.]/g,''))||0;
-  const p=row.dataset.period,h=row.querySelector('.ohint');
-  if(p==='month'){h.className='ohint recur';h.textContent=`↳ 월 ${won(amt)}원 × 12 = 연 ${won(amt*12)}원 반복`;}
-  else if(p==='year'){h.className='ohint recur';h.textContent=`↳ 매년 ${won(amt)}원 반복 (갱신)`;}
-  else{h.className='ohint';h.textContent='↳ 1회성 투자비';}
 }
 function updateDel(){const rows=document.querySelectorAll('#outsourceList .orow');rows.forEach(r=>r.querySelector('.delx').disabled=rows.length<=1);}
 $('addOutsource').addEventListener('click',()=>{$('outsourceList').appendChild(makeRow('','0','once'));updateDel();calc();});
@@ -278,7 +263,7 @@ function sumOutsource(){let once=0,recur=0;document.querySelectorAll('#outsource
   const amt=parseFloat(r.querySelector('.amt').value.replace(/[^0-9.]/g,''))||0;
   const p=r.dataset.period;
   if(p==='month')recur+=amt*12;else if(p==='year')recur+=amt;else once+=amt;
-  updateHint(r);});return{once,recur};}
+  });return{once,recur};}
 
 ['games','perGame','ourShare'].forEach(id=>$(id).addEventListener('input',calc));
 
