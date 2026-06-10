@@ -4,17 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>야구단 포토부스 · 손익분기 계산기</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#0b0d10; --panel:#13161b; --panel-2:#191d24; --line:#2a313b;
     --txt:#eef2f7; --txt-dim:#9aa3b0; --txt-faint:#646c78;
     --accent:#c8ff4d; --accent-dim:#8aa83a; --loss:#ff6b6b; --loss-dim:#7a3030; --amber:#ffb648;
     --radius:14px;
-    --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
-    --sans:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
+    --mono:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    --sans:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{background-color:#0b0d10;color:var(--txt);font-family:var(--sans);-webkit-text-size-adjust:100%}
+  html,body{background-color:#0b0d10;color:var(--txt);font-family:var(--sans);-webkit-text-size-adjust:100%;font-feature-settings:"tnum"}
   body{min-height:100vh;background-color:#0b0d10;margin:0}
   .wrap{max-width:680px;margin:0 auto;background-color:#0b0d10;min-height:100vh;padding:24px 16px 80px}
 
@@ -122,6 +125,31 @@
   .subtotal{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;font-size:12px;color:var(--txt-dim)}
   .subtotal b{font-family:var(--mono);font-size:14px;color:var(--txt);font-weight:700}
 
+  /* 10년 시뮬레이션 */
+  .assume{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:11.5px;color:var(--txt-dim)}
+  .chip b{color:var(--txt);font-family:var(--mono);font-weight:700;margin-left:5px}
+  .chip.cost{border-color:rgba(255,182,72,.28)}
+  .chip.cost .pd{color:var(--amber);font-family:var(--mono);font-size:10px;margin-left:6px}
+  .sim-kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:16px 0}
+  .sim-kpi .k{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:11px 9px;text-align:center}
+  .sim-kpi .kk{font-size:10.5px;color:var(--txt-dim);margin-bottom:6px;line-height:1.3}
+  .sim-kpi .kv{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent);letter-spacing:-.01em}
+  .sim-kpi .kv.neg2{color:var(--loss)}
+  .sim-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:11px}
+  .sim-table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:10.5px}
+  .sim-table th,.sim-table td{padding:6px 7px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+  .sim-table thead th{color:var(--txt-dim);font-weight:600;font-size:9.5px;background:var(--panel-2)}
+  .sim-table th:first-child,.sim-table td:first-child{position:sticky;left:0;text-align:left;background:var(--panel);font-weight:700;color:var(--txt);width:50px}
+  .sim-table thead th:first-child{background:var(--panel-2)}
+  .sim-table tbody tr:last-child td{border-bottom:0}
+  .sim-table td.neg{color:var(--loss)} .sim-table td.pos{color:var(--accent)}
+  .sim-table tr.bep td{background:rgba(200,255,77,.09)}
+  .sim-table tr.bep td:first-child{background:rgba(200,255,77,.14);box-shadow:inset 3px 0 0 var(--accent)}
+  .bepbadge{display:inline-block;font-family:var(--sans);font-size:9px;font-weight:700;color:#0b0d10;background:var(--accent);border-radius:4px;padding:1px 5px;margin-left:6px}
+  .xlsx-btn{margin-left:auto;flex:none;background:var(--accent);color:#0b0d10;border:0;border-radius:8px;font-family:var(--sans);font-size:11.5px;font-weight:700;padding:7px 11px;cursor:pointer}
+  .xlsx-btn:active{opacity:.85}
+
   footer{text-align:center;color:var(--txt-faint);font-size:11px;font-family:var(--mono);margin-top:24px;letter-spacing:.04em;line-height:1.6}
 </style>
 </head>
@@ -132,6 +160,41 @@
     <h1>야구단 포토부스 손익분기 계산기</h1>
     <p class="sub">매년 갱신되는 IP·유지보수까지 반영한 실질 손익분기. 객단가 하나만 정하면 회수 시점이 보입니다.</p>
   </header>
+
+  <details open>
+    <summary>상세 설정 · 비용 / 운영 입력 <span class="chev">▾</span></summary>
+    <div class="det-b">
+      <div class="grp">
+        <div class="grp-t">비용 — 항목별 · 1회 / 매년 / 매월 선택</div>
+        <div id="outsourceList"></div>
+        <button class="addbtn" id="addOutsource">+ 항목 추가</button>
+        <div class="subtotal"><span>1회성 합계</span><b id="onceSum">0</b></div>
+        <div class="subtotal" style="margin-top:5px"><span>매년 반복 합계 <span style="color:var(--txt-faint)">(연 환산)</span></span><b id="recurSum" style="color:var(--amber)">0</b></div>
+      </div>
+
+      <div class="grp">
+        <div class="grp-t">운영</div>
+        <div class="two">
+          <div class="field" style="margin:0">
+            <label>연간 경기 수</label>
+            <div class="inwrap"><input type="text" id="games" value="72"><span class="unit">경기</span></div>
+          </div>
+          <div class="field" style="margin:0">
+            <label>경기당 촬영 인원</label>
+            <div class="inwrap"><input type="text" id="perGame" value="200"><span class="unit">명</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="grp-t">수익쉐어</div>
+        <div class="field" style="margin-bottom:0">
+          <label>우리(대행사) 몫 <span class="hint">야구단 배분 후</span></label>
+          <div class="inwrap"><input type="text" id="ourShare" value="80"><span class="unit">%</span></div>
+        </div>
+      </div>
+    </div>
+  </details>
 
   <div id="hero" class="hero ok"></div>
 
@@ -185,40 +248,17 @@
     </div>
   </div>
 
-  <details open>
-    <summary>상세 설정 · 비용 / 운영 입력 <span class="chev">▾</span></summary>
-    <div class="det-b">
-      <div class="grp">
-        <div class="grp-t">비용 — 항목별 · 1회 / 매년 / 매월 선택</div>
-        <div id="outsourceList"></div>
-        <button class="addbtn" id="addOutsource">+ 항목 추가</button>
-        <div class="subtotal"><span>1회성 합계</span><b id="onceSum">0</b></div>
-        <div class="subtotal" style="margin-top:5px"><span>매년 반복 합계 <span style="color:var(--txt-faint)">(연 환산)</span></span><b id="recurSum" style="color:var(--amber)">0</b></div>
-      </div>
-
-      <div class="grp">
-        <div class="grp-t">운영</div>
-        <div class="two">
-          <div class="field" style="margin:0">
-            <label>연간 경기 수</label>
-            <div class="inwrap"><input type="text" id="games" value="72"><span class="unit">경기</span></div>
-          </div>
-          <div class="field" style="margin:0">
-            <label>경기당 예상 인원</label>
-            <div class="inwrap"><input type="text" id="perGame" value="200"><span class="unit">명</span></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="grp">
-        <div class="grp-t">수익쉐어</div>
-        <div class="field" style="margin-bottom:0">
-          <label>우리(대행사) 몫 <span class="hint">야구단 배분 후</span></label>
-          <div class="inwrap"><input type="text" id="ourShare" value="80"><span class="unit">%</span></div>
-        </div>
-      </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-h"><span class="n">▤</span><h2>예상 손익 시뮬레이션 <span class="small">· 연도별</span></h2><button class="xlsx-btn" id="xlsxBtn" type="button">⬇ 엑셀 추출</button></div>
+    <div class="card-b">
+      <div class="grp-t" style="margin-bottom:10px">기본 조건</div>
+      <div class="assume" id="simBasic"></div>
+      <div class="grp-t" style="margin:16px 0 10px">제작비</div>
+      <div class="assume" id="simCost"></div>
+      <div class="sim-kpi" id="simKpi"></div>
+      <div class="sim-table-wrap"><table class="sim-table" id="simTable"></table></div>
     </div>
-  </details>
+  </div>
 
   <footer>PHOTOBOOTH BREAK-EVEN · 선수 IP 등 매년 갱신 비용은 [매년]으로 설정해야<br>실질 손익분기가 정확히 계산됩니다 · 입력값은 저장되지 않습니다</footer>
 </div>
@@ -267,6 +307,117 @@ function sumOutsource(){let once=0,recur=0;document.querySelectorAll('#outsource
 
 ['games','perGame','ourShare'].forEach(id=>$(id).addEventListener('input',calc));
 
+function buildAssume(price){
+  $('simBasic').innerHTML=`<div class="chip">객단가<b>${won(price)}원</b></div>
+    <div class="chip">우리 몫<b>${num('ourShare')}%</b></div>
+    <div class="chip">경기당 촬영 인원<b>${won(num('perGame'))}명</b></div>
+    <div class="chip">연 경기수<b>${won(num('games'))}경기</b></div>`;
+  let c='';
+  document.querySelectorAll('#outsourceList .orow').forEach(r=>{
+    const nm=(r.querySelector('.oname').value||'(항목)');
+    const amt=parseFloat(r.querySelector('.amt').value.replace(/[^0-9.]/g,''))||0;
+    const p=r.dataset.period,pl=p==='month'?'매월':p==='year'?'매년':'1회';
+    c+=`<div class="chip cost">${nm}<b>${won(amt)}원</b><span class="pd">${pl}</span></div>`;
+  });
+  $('simCost').innerHTML=c;
+}
+function buildSim(capex,recur,grossRev,share,price){
+  window.CUR_PRICE=price;
+  const payout=grossRev*(1-share);
+  const payoutPct=Math.round((1-share)*100);
+  let cum=0,prevCum=0,bepExact=null,rows='';
+  for(let t=1;t<=10;t++){
+    const inv=(t===1)?capex:0;
+    const net=grossRev-inv-payout-recur;
+    prevCum=cum; cum+=net;
+    let cls='';
+    if(bepExact===null && cum>=0){
+      cls='bep';
+      const op=grossRev-payout-recur;
+      bepExact=(prevCum<0 && net>0)?(t-1)+(-prevCum)/net:((op>0)?capex/op:t);
+    }
+    rows+=`<tr class="${cls}"><td>${t}년차${cls==='bep'?'<span class="bepbadge">BEP</span>':''}</td>
+      <td>${won(grossRev)}</td>
+      <td>${inv?won(inv):'–'}</td>
+      <td>${won(payout)}</td>
+      <td>${won(recur)}</td>
+      <td class="${net>=0?'pos':'neg'}">${net>=0?'+':''}${won(net)}</td>
+      <td class="${cum>=0?'pos':'neg'}">${cum>=0?'+':''}${won(cum)}</td></tr>`;
+  }
+  $('simTable').innerHTML=`<thead><tr><th>연차</th><th>연 매출액</th><th>투자비용</th><th>수익배분금(${payoutPct}%)</th><th>고정비</th><th>연순익</th><th>누적 순익</th></tr></thead><tbody>${rows}</tbody>`;
+  const roi=capex>0?(cum/capex*100):0;
+  $('simKpi').innerHTML=`
+    <div class="k"><div class="kk">손익분기</div><div class="kv ${bepExact!==null?'':'neg2'}">${bepExact!==null?bepExact.toFixed(1)+'년':'10년+'}</div></div>
+    <div class="k"><div class="kk">10년 누적 순익</div><div class="kv ${cum>=0?'':'neg2'}">${(cum>=0?'+':'')+abbr(cum)}원</div></div>
+    <div class="k"><div class="kk">누적 ROI</div><div class="kv ${roi>=0?'':'neg2'}">${roi.toFixed(0)}%</div></div>`;
+}
+function exportExcel(){
+  if(typeof XLSX==='undefined'){alert('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.');return;}
+  const price=Math.round(window.CUR_PRICE||0);
+  const share=num('ourShare')/100, perGame=num('perGame'), games=num('games');
+  const aoa=[],F={},Z={};
+  const ref=(c,r)=>XLSX.utils.encode_cell({c:c,r:r});
+  const abs=(c,r)=>'$'+XLSX.utils.encode_col(c)+'$'+(r+1);
+  const setF=(c,r,f,z)=>{F[ref(c,r)]=f;if(z)Z[ref(c,r)]=z;};
+  const setZ=(c,r,z)=>{Z[ref(c,r)]=z;};
+  const NUM='#,##0',PCT='0%';
+  const push=a=>{aoa.push(a);return aoa.length-1;};
+  push(['야구단 포토부스 — 10년 재무 시뮬레이션']);
+  push([]);
+  push(['[ 적용 가정 ]  · B열 값을 수정하면 아래 표가 자동 재계산됩니다']);
+  const rPrice=push(['객단가(원)',price]); setZ(1,rPrice,NUM);
+  const rShare=push(['우리 쉐어',share]); setZ(1,rShare,PCT);
+  const rPer=push(['경기당 촬영 인원',perGame]); setZ(1,rPer,NUM);
+  const rGames=push(['연 경기수',games]); setZ(1,rGames,NUM);
+  push([]);
+  push(['[ 비용 항목 ]','금액(원)','주기','연 환산(원)']);
+  const cStart=aoa.length;
+  document.querySelectorAll('#outsourceList .orow').forEach(r=>{
+    const nm=(r.querySelector('.oname').value||'(항목)');
+    const amt=Math.round(parseFloat(r.querySelector('.amt').value.replace(/[^0-9.]/g,''))||0);
+    const p=r.dataset.period,pl=p==='month'?'매월':p==='year'?'매년':'1회';
+    const ri=push([nm,amt,pl,null]); setZ(1,ri,NUM);
+    setF(3,ri,`IF(${ref(2,ri)}="매월",${ref(1,ri)}*12,IF(${ref(2,ri)}="매년",${ref(1,ri)},0))`,NUM);
+  });
+  const cEnd=aoa.length-1;
+  push([]);
+  const rOnce=push(['1회성 투자 합계',null]);
+  setF(1,rOnce,`SUMIF(${ref(2,cStart)}:${ref(2,cEnd)},"1회",${ref(1,cStart)}:${ref(1,cEnd)})`,NUM);
+  const rRecur=push(['연 반복비 합계',null]);
+  setF(1,rRecur,`SUM(${ref(3,cStart)}:${ref(3,cEnd)})`,NUM);
+  push([]);
+  push(['[ 연도별 현황 ]']);
+  push(['연차','연 매출액(원)','투자비용(원)','수익배분금(원)','고정비(원)','연순익(원)','누적 순익(원)']);
+  const yStart=aoa.length;
+  for(let t=1;t<=10;t++)push([t+'년차',null,null,null,null,null,null]);
+  const yEnd=aoa.length-1;
+  for(let i=0;i<10;i++){
+    const r=yStart+i;
+    setF(1,r,`${abs(1,rPrice)}*${abs(1,rGames)}*${abs(1,rPer)}`,NUM);          // 연 매출액(총매출)
+    setF(2,r,i===0?`${ref(1,rOnce)}`:'0',NUM);                                 // 투자비용
+    setF(3,r,`${ref(1,r)}*(1-${abs(1,rShare)})`,NUM);                          // 수익배분금
+    setF(4,r,`${ref(1,rRecur)}`,NUM);                                          // 고정비
+    setF(5,r,`${ref(1,r)}-${ref(2,r)}-${ref(3,r)}-${ref(4,r)}`,NUM);           // 연순익
+    setF(6,r,i===0?`${ref(5,r)}`:`${ref(6,r-1)}+${ref(5,r)}`,NUM);             // 누적 순익
+  }
+  push([]);
+  push(['[ KPI ]']);
+  const rBep=push(['손익분기(년)',null]);
+  setF(1,rBep,`IFERROR(${ref(2,yStart)}/(${ref(1,yStart)}-${ref(3,yStart)}-${ref(4,yStart)}),"회수불가")`,'0.0');
+  const rCum=push(['10년 누적 순익(원)',null]);
+  setF(1,rCum,`${ref(6,yEnd)}`,NUM);
+  const rRoi=push(['누적 ROI',null]);
+  setF(1,rRoi,`IFERROR(${ref(6,yEnd)}/${ref(2,yStart)},0)`,PCT);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  Object.keys(F).forEach(a=>{ws[a]={t:'n',f:F[a]};});
+  Object.keys(Z).forEach(a=>{if(!ws[a])ws[a]={t:'n'};ws[a].z=Z[a];});
+  ws['!cols']=[{wch:9},{wch:15},{wch:14},{wch:16},{wch:13},{wch:15},{wch:16}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'10년 시뮬레이션');
+  XLSX.writeFile(wb,'야구단_포토부스_10년시뮬레이션.xlsx');
+}
+$('xlsxBtn').addEventListener('click',exportExcel);
+
 $('modeSeg').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
   mode=b.dataset.mode;$('modeSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
   $('ctlTarget').style.display=mode==='target'?'block':'none';
@@ -304,17 +455,23 @@ function calc(){
   $('m-net').textContent=(annualNet>=0?'+':'')+abbr(annualNet)+'원';$('m-net').className='mv '+(annualNet>=0?'pos':'neg');
   $('m-bep').textContent=yrText(bep);$('m-bep').className='mv '+(bep<=20?'pos':'neg');
 
-  // HERO
+  // HERO — 수익 인사이트
+  const firstYear = annualNet>0 ? Math.ceil(bep) : null;
+  const firstCum  = firstYear!==null ? annualNet*firstYear - capex : 0;
+  const tenCum    = annualNet*10 - capex;
+  const insight = fy=>`<b>${fy}년차</b>에 첫 수익이 발생합니다 (그 시점 누적 <b style="color:var(--accent)">+${won(firstCum)}원</b>). 이후 연 평균 <b>${won(annualNet)}원</b>, 10년 누적 <b style="color:var(--accent)">+${won(tenCum)}원</b>입니다.`;
+
   const hero=$('hero');
   if(mode==='target'){
-    if(volume<=0||price<=0){hero.className='hero bad';hero.innerHTML=`<div class="tag">▲ 입력 확인</div><div class="headline">경기 수·인원·쉐어를 확인해 주세요</div><div class="figure">–</div>`;}
+    if(volume<=0||price<=0){hero.className='hero bad';hero.innerHTML=`<div class="tag">▲ 입력 확인</div><div class="headline">경기 수·인원·우리 몫을 확인해 주세요</div><div class="figure">–</div>`;}
     else{
       const realistic = price<=20000;
+      const fy=Math.min(Math.ceil(targetYears),10);
       hero.className='hero '+(realistic?'ok':'bad');
       hero.innerHTML=`<div class="tag">${realistic?'● 필요 객단가':'◆ 필요 객단가 (높음)'}</div>
         <div class="headline">목표 <b style="color:var(--txt)">${targetYears.toFixed(1)}년</b> 안에 회수하려면 객단가는</div>
         <div class="figure">${won(price)}<span style="font-size:.5em">원</span></div>
-        <div class="note">현재 자료의 7,000원 대비 <b>${(price/7000).toFixed(1)}배</b> 수준입니다. 매년 나가는 IP·유지보수 <b>${abbr(annualRecur)}원</b>을 먼저 메우고 1회성 투자 <b>${abbr(capex)}원</b>을 ${targetYears.toFixed(1)}년에 나눠 회수하는 가격입니다.${realistic?'':' 현실적 객단가(2만원 내외)로는 무리이니 목표 기간을 늘리거나 경기당 인원·쉐어 조건을 조정해야 합니다.'}</div>`;
+        <div class="note">${insight(fy)}${realistic?'':' 다만 현실적 객단가(2만원 내외)를 넘으니, 목표 기간을 늘리거나 인원·우리 몫 조건을 높이는 편이 좋습니다.'}</div>`;
     }
   } else {
     if(annualNet<=0){
@@ -322,13 +479,19 @@ function calc(){
       hero.innerHTML=`<div class="tag">▲ 구조적 적자</div>
         <div class="headline">객단가 ${won(price)}원 — 이 가격으로는</div>
         <div class="figure">회수 불가</div>
-        <div class="note">우리 몫 연 매출 <b>${abbr(ourRevenue)}원</b>이 매년 나가는 IP·유지보수 <b>${abbr(annualRecur)}원</b>보다 적습니다. 매년 <b style="color:var(--loss)">${abbr(annualNet)}원</b>씩 손실이 누적됩니다. 적자 탈출 최소 객단가는 <b>${won(annualRecur/volume)}원</b>입니다.</div>`;
+        <div class="note">우리 몫 연 매출 <b>${won(ourRevenue)}원</b>이 매년 나가는 고정비 <b>${won(annualRecur)}원</b>보다 적어, 매년 <b style="color:var(--loss)">${won(annualNet)}원</b>씩 손실이 쌓입니다. 적자 탈출 최소 객단가는 <b>${won(annualRecur/volume)}원</b>입니다.</div>`;
+    }else if(bep>10){
+      hero.className='hero bad';
+      hero.innerHTML=`<div class="tag">◆ 장기 회수</div>
+        <div class="headline">객단가 ${won(price)}원 — 투자 회수까지</div>
+        <div class="figure">${bep>100?'사실상 불가':bep.toFixed(1)+'<span style="font-size:.5em">년</span>'}</div>
+        <div class="note">연 순현금이 <b>${won(annualNet)}원</b>에 그쳐 10년 안에는 흑자 전환이 어렵습니다. 이 구간에서는 객단가를 조금만 올려도 회수기간이 급격히 짧아집니다.</div>`;
     }else{
       hero.className='hero ok';
       hero.innerHTML=`<div class="tag">● 손익분기 도달</div>
         <div class="headline">객단가 ${won(price)}원 — 투자 회수까지</div>
         <div class="figure">${bep.toFixed(1)}<span style="font-size:.5em">년</span></div>
-        <div class="note">매년 IP·유지보수 <b>${abbr(annualRecur)}원</b>을 제하고도 <b style="color:var(--accent)">${abbr(annualNet)}원</b>이 남아 1회성 투자 <b>${abbr(capex)}원</b>을 ${bep.toFixed(1)}년에 회수합니다.</div>`;
+        <div class="note">${insight(firstYear)}</div>`;
     }
   }
 
@@ -343,6 +506,8 @@ function calc(){
     <div class="cstep"><div class="crow"><span class="ck">손익분기 시점</span><span class="cval ${bep<=20?'pos':'neg'}">${yrText(bep)}</span></div><div class="cform">= CAPEX ÷ 연간 순현금</div></div>`;
 
   drawChart({capex,annualNet,bep,targetYears,price});
+  buildAssume(price);
+  buildSim(capex,annualRecur,price*games*perGame,share,price);
 }
 
 function drawChart(d){
